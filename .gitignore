@@ -1,0 +1,31 @@
+# --- Project Specific Data (Don't upload these!) ---
+# These folders contain thousands of images
+traffic_screenshots/
+labeled_dataset/
+live_monitoring/
+
+# --- The AI Brain ---
+# This file is large and changes every time you train. 
+# Generally, you don't commit it unless you use Git LFS.
+road_model.keras
+road_model.h5
+
+# --- Python & Virtual Environments ---
+__pycache__/
+*.pyc
+venv/
+env/
+.env
+
+# --- Operating System Junk ---
+.DS_Store
+Thumbs.db
+
+# --- IDE Settings (VS Code, Pycharm) ---
+.vscode/
+.idea/
+
+# --- Browser Drivers (Selenium) ---
+chromedriver
+geckodriver
+*.log
