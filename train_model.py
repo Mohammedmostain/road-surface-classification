@@ -1,21 +1,18 @@
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
-import matplotlib.pyplot as plt
-import os
 
 # --- CONFIGURATION ---
 DATASET_PATH = "labeled_dataset"
 IMG_HEIGHT = 180
 IMG_WIDTH = 180
 BATCH_SIZE = 32
-EPOCHS = 15  # How many times the AI studies the entire dataset
+EPOCHS = 15
 
-def train_brain():
-    print("------------------------------------------------")
-    print("Phase 1: Loading Data")
-    print("------------------------------------------------")
-    
-    # 1. Load Training Data (80% of images)
+def train():
+    # 1. Load Data
+    # (We use a seed so the split is reproducible)
     train_ds = tf.keras.utils.image_dataset_from_directory(
         DATASET_PATH,
         validation_split=0.2,
@@ -25,7 +22,6 @@ def train_brain():
         batch_size=BATCH_SIZE
     )
 
-    # 2. Load Validation Data (20% of images - used for testing)
     val_ds = tf.keras.utils.image_dataset_from_directory(
         DATASET_PATH,
         validation_split=0.2,
@@ -36,77 +32,87 @@ def train_brain():
     )
 
     class_names = train_ds.class_names
-    print(f"\nClasses found: {class_names}")
-    
-    # optimize performance
+    num_classes = len(class_names)
+    print(f"Classes found: {class_names}")
+
+    # Optimize performance
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
-    print("\n------------------------------------------------")
-    print("Phase 2: Building the CNN Architecture")
-    print("------------------------------------------------")
+    # 2. Define Data Augmentation Block
+    # These layers ONLY activate during model.fit(), not model.predict()
+    data_augmentation = tf.keras.Sequential([
+        layers.RandomFlip("horizontal", input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
+        layers.RandomRotation(0.1), # Rotate up to 10%
+        layers.RandomZoom(0.1),     # Zoom in/out up to 10%
+    ])
 
+    # 3. Build the Model
     model = models.Sequential([
-        # Layer 1: Rescaling (Make pixels numbers between 0 and 1)
-        layers.Rescaling(1./255, input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
+        # Augmentation happens FIRST
+        data_augmentation,
         
-        # Layer 2: Convolution (The "Eyes") - Finds edges and simple shapes
+        # Then we normalize
+        layers.Rescaling(1./255),
+        
+        # The Convolutional Base (The "Eyes")
         layers.Conv2D(16, 3, padding='same', activation='relu'),
-        layers.MaxPooling2D(), # Reduces size (focuses on important parts)
-
-        # Layer 3: Convolution (The "Cortex") - Finds textures (snow vs asphalt)
+        layers.MaxPooling2D(),
+        
         layers.Conv2D(32, 3, padding='same', activation='relu'),
         layers.MaxPooling2D(),
-
-        # Layer 4: Convolution (The "Deep Vision") - Finds complex patterns
+        
         layers.Conv2D(64, 3, padding='same', activation='relu'),
         layers.MaxPooling2D(),
         
-        # Layer 5: Flatten (Turn the 2D image into a long list of numbers)
+        # The Dropout Layer (New!)
+        # Randomly turns off 20% of neurons to force the others to learn better
+        layers.Dropout(0.2),
+
+        # The Classifier (The "Brain")
         layers.Flatten(),
-        
-        # Layer 6: Dense (The "Brain") - Makes the final decision
         layers.Dense(128, activation='relu'),
-        
-        # Layer 7: Output - One score for each class (Clear, Full, Partial)
-        layers.Dense(len(class_names))
+        layers.Dense(num_classes)
     ])
 
+    # 4. Compile
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
 
-    model.summary()
-
-    print("\n------------------------------------------------")
-    print("Phase 3: Training (The Learning Process)")
-    print("------------------------------------------------")
-    
+    # 5. Train
+    print("Starting training...")
     history = model.fit(
         train_ds,
         validation_data=val_ds,
         epochs=EPOCHS
     )
 
-    print("\n------------------------------------------------")
-    print("Phase 4: Saving the Brain")
-    print("------------------------------------------------")
-    
-    model.save('road_model.keras')
-    print("SUCCESS! Model saved to 'road_model.keras'")
-    
-    # Optional: Show a graph of how well it learned
+    # 6. Save
+    model.save("road_model.keras")
+    print("Model saved as road_model.keras")
+
+    # 7. Visualize Results
     acc = history.history['accuracy']
     val_acc = history.history['val_accuracy']
-    plt.plot(acc, label='Training Accuracy')
-    plt.plot(val_acc, label='Validation Accuracy')
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    epochs_range = range(EPOCHS)
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs_range, acc, label='Training Accuracy')
+    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
     plt.legend(loc='lower right')
-    plt.title('Training Results')
+    plt.title('Accuracy')
+
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs_range, loss, label='Training Loss')
+    plt.plot(epochs_range, val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.title('Loss')
     plt.show()
 
 if __name__ == "__main__":
-    if not os.path.exists(DATASET_PATH):
-        print(f"Error: Folder '{DATASET_PATH}' not found. Run manual_sorter.py first!")
-    else:
-        train_brain()
+    train()

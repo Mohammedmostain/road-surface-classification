@@ -21,6 +21,8 @@ env/
 .DS_Store
 Thumbs.db
 
+test_dataset/
+
 # --- IDE Settings (VS Code, Pycharm) ---
 .vscode/
 .idea/

@@ -13,17 +13,16 @@ IMG_WIDTH = 180
 BATCH_SIZE = 32
 
 def evaluate():
+    # 1. Check if model exists
     if not os.path.exists(MODEL_PATH):
-        print("Error: Model not found. Run train_model.py first.")
+        print("Error: Model not found. Did you remember to run 'train_model.py' after cleaning?")
         return
 
     print("Loading Model and Data...")
-    
-    # 1. Load the Trained Brain
     model = tf.keras.models.load_model(MODEL_PATH)
     
-    # 2. Re-load the SAME Validation data used during training
-    # (We use seed=123 to ensure we get the exact same split of images)
+    # 2. Load the Validation Split (20% of data)
+    # We MUST shuffle to ensure we get a random mix of Clear, Full, and Partial
     val_ds = tf.keras.utils.image_dataset_from_directory(
         DATASET_PATH,
         validation_split=0.2,
@@ -31,35 +30,44 @@ def evaluate():
         seed=123,
         image_size=(IMG_HEIGHT, IMG_WIDTH),
         batch_size=BATCH_SIZE,
-        shuffle=False # IMPORTANT: Don't shuffle so predictions match labels
+        shuffle=True 
     )
     
     class_names = val_ds.class_names
-    print(f"Classes: {class_names}")
+    print(f"Classes found: {class_names}")
 
-    # 3. Get Predictions
-    print("\nRunning predictions on validation set...")
-    predictions = model.predict(val_ds)
-    predicted_classes = np.argmax(predictions, axis=1)
-    
-    # 4. Get True Labels
-    true_labels = np.concatenate([y for x, y in val_ds], axis=0)
+    # 3. Extract Images and Labels
+    # We iterate through the dataset to separate images from their true labels
+    print("Running predictions on clean validation data...")
+    all_images = []
+    all_labels = []
 
-    # --- REPORT 1: The Metrics ---
+    for images, labels in val_ds:
+        all_images.append(images.numpy())
+        all_labels.append(labels.numpy())
+
+    x_test = np.concatenate(all_images)
+    y_true = np.concatenate(all_labels)
+
+    # 4. Predict
+    predictions = model.predict(x_test, verbose=0)
+    y_pred = np.argmax(predictions, axis=1)
+
+    # --- REPORT 1: The Numbers ---
     print("\n------------------------------------------------")
     print("CLASSIFICATION REPORT")
     print("------------------------------------------------")
-    print(classification_report(true_labels, predicted_classes, target_names=class_names))
+    print(classification_report(y_true, y_pred, target_names=class_names))
 
-    # --- REPORT 2: The Confusion Matrix (Heatmap) ---
-    cm = confusion_matrix(true_labels, predicted_classes)
+    # --- REPORT 2: The Heatmap ---
+    cm = confusion_matrix(y_true, y_pred)
     
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=class_names, yticklabels=class_names)
     plt.ylabel('Actual Truth')
     plt.xlabel('AI Prediction')
-    plt.title('Confusion Matrix (Where did it mess up?)')
+    plt.title('Confusion Matrix (Clean Data)')
     plt.show()
 
 if __name__ == "__main__":
