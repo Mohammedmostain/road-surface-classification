@@ -1,0 +1,8 @@
+gcloud functions deploy scrape_traffic_cameras \
+  --gen2 \
+  --runtime=python311 \
+  --region=northamerica-northeast1 \
+  --source=. \
+  --entry-point=scrape_traffic_cameras \
+  --trigger-http \
+  --no-allow-unauthenticated

@@ -1,0 +1,21 @@
+
+Create a service account for scheduler
+
+gcloud iam service-accounts create scheduler-invoker \
+  --display-name="Scheduler Invoker"
+
+permission to invoke the function
+gcloud run services add-iam-policy-binding scrape_traffic_cameras \
+  --region=northamerica-northeast1 \
+  --member="serviceAccount:scheduler-invoker@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/run.invoker"
+
+Create the scheduler job
+gcloud scheduler jobs create http trafficcam-job \
+  --location=northamerica-northeast1 \
+  --schedule="*/10 * * * *" \
+  --uri="https://YOUR_FUNCTION_URL" \
+  --http-method=POST \
+  --oidc-service-account-email="scheduler-invoker@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --oidc-token-audience="https://YOUR_FUNCTION_URL"
+

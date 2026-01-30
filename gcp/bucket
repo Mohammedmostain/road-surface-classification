@@ -1,0 +1,7 @@
+Create the bucket
+gcloud storage buckets create gs://YOUR_BUCKET_NAME --location=northamerica-northeast1
+
+IAM for writing to the bucket
+gcloud storage buckets add-iam-policy-binding gs://YOUR_BUCKET_NAME \
+  --member="serviceAccount:YOUR_FUNCTION_RUNTIME_SA" \
+  --role="roles/storage.objectCreator"
